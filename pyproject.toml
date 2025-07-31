@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai_agent_agno"
+version = "0.0.1"
+description = "An AI agent project that uses Agno framework with data analysis tools."
+dependencies = [
+    "pandas>=2.0.0",
+    "streamlit>=1.22.0",
+    "agno",
+    "duckdb",
+    "pyyaml>=6.0.0",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.24.0",
+    "pyarrow>=10.0.0",
+    "fastparquet>=0.8.0",
+    "chardet>=5.0.0",
+    "sqlalchemy"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
