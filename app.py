@@ -21,7 +21,7 @@ st.set_page_config(page_title="Agente IA Target", page_icon="🤖", layout="wide
 @st.cache_data
 def load_parquet_data():
     """Carrega arquivo Parquet com tratamento robusto de codificação"""
-    data_path = "data/raw/DadosComercial_limpo.parquet"
+    data_path = "data/raw/DadosComercial_resumido.parquet"
 
     # Method 1: Try direct pandas loading
     try:
