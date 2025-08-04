@@ -21,7 +21,7 @@ def create_agent(session_user_id=None):
     os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
     # Carregar dados do parquet
-    data_path = "data/raw/DadosComercial_limpo.parquet"
+    data_path = "data/raw/DadosComercial_resumido.parquet"
     df = pd.read_parquet(data_path)
 
     # Aplicar normalização de texto aos dados
@@ -39,7 +39,7 @@ def create_agent(session_user_id=None):
 
     # Adicionar informações sobre o dataset
     dataset_info = f"""
-Dataset: DadosComercial_limpo.parquet
+Dataset: DadosComercial_resumido.parquet
 Localização: {data_path}
 Número de linhas: {len(df)}
 Número de colunas: {len(df.columns)}
