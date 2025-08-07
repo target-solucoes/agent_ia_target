@@ -7,7 +7,7 @@ import sys
 import uuid
 
 sys.path.append("src")
-from duckdb_agent import create_agent
+from chatbot_agents import create_agent
 from text_normalizer import TextNormalizer
 
 warnings.filterwarnings("ignore")
@@ -16,6 +16,71 @@ load_dotenv()
 
 # Page configuration
 st.set_page_config(page_title="Agente IA Target", page_icon="🤖", layout="wide")
+
+
+def format_sql_query(query):
+    """
+    Formata uma query SQL para melhor legibilidade
+    """
+    if not query:
+        return query
+
+    # Remove caracteres de escape e limpa a string
+    import re
+
+    # Remove ANSI escape sequences
+    query = re.sub(r"\x1b\[[0-9;]*m", "", query)
+
+    # Remove caracteres de controle
+    query = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", query)
+
+    # Normaliza espaços em branco
+    query = " ".join(query.split())
+
+    # Formata as principais palavras-chave SQL
+    keywords = [
+        "SELECT",
+        "FROM",
+        "WHERE",
+        "JOIN",
+        "LEFT JOIN",
+        "RIGHT JOIN",
+        "INNER JOIN",
+        "GROUP BY",
+        "ORDER BY",
+        "HAVING",
+        "UNION",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "AS",
+    ]
+
+    formatted_query = query
+    for keyword in keywords:
+        # Adiciona quebras de linha antes das principais palavras-chave
+        if keyword in ["FROM", "WHERE", "GROUP BY", "ORDER BY", "HAVING"]:
+            formatted_query = re.sub(
+                f" {keyword} ", f"\n{keyword} ", formatted_query, flags=re.IGNORECASE
+            )
+        elif keyword == "SELECT":
+            formatted_query = re.sub(
+                f"^{keyword} ", f"{keyword}\n    ", formatted_query, flags=re.IGNORECASE
+            )
+
+    # Ajusta indentação
+    lines = formatted_query.split("\n")
+    formatted_lines = []
+    for line in lines:
+        line = line.strip()
+        if line.upper().startswith(
+            ("SELECT", "FROM", "WHERE", "GROUP BY", "ORDER BY", "HAVING")
+        ):
+            formatted_lines.append(line)
+        else:
+            formatted_lines.append("    " + line if line else line)
+
+    return "\n".join(formatted_lines)
 
 
 @st.cache_data
@@ -254,6 +319,35 @@ def main():
         transform: translateY(0px);
     }
 
+    /* Debug mode toggle styling */
+    .stToggle > div {
+        background-color: transparent !important;
+    }
+    
+    .stToggle > div > div {
+        background-color: #f0f0f0 !important;
+        border-radius: 20px !important;
+    }
+    
+    .stToggle > div > div[data-checked="true"] {
+        background-color: #e74c3c !important;
+    }
+    
+    /* Debug section styling */
+    .debug-section {
+        background-color: rgba(231, 76, 60, 0.05);
+        border: 1px solid rgba(231, 76, 60, 0.2);
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .debug-title {
+        color: #e74c3c;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
         .app-title {
@@ -271,8 +365,8 @@ def main():
         unsafe_allow_html=True,
     )
 
-    # Import selected_model from duckdb_agent
-    from duckdb_agent import selected_model
+    # Import selected_model from chatbot_agents
+    from chatbot_agents import selected_model
 
     # Enhanced Professional Header
     st.markdown(
@@ -318,6 +412,17 @@ def main():
         chat_col1, chat_col2, chat_col3 = st.columns([1, 3, 1])
 
         with chat_col2:
+            # Debug mode toggle
+            debug_col1, debug_col2 = st.columns([3, 1])
+            with debug_col2:
+                debug_mode = st.toggle(
+                    "Debug",
+                    value=False,
+                    help="Ativar modo debug para exibir queries SQL e raciocínio do agente",
+                )
+
+            # Store debug mode in session state
+            st.session_state.debug_mode = debug_mode
             # Initialize chat history
             if "messages" not in st.session_state:
                 st.session_state.messages = []
@@ -364,20 +469,67 @@ Como posso ajudá-lo hoje?"""
             ):
                 # Add user message to chat history and display
                 st.session_state.messages.append({"role": "user", "content": prompt})
-                
+
                 # Get agent response
                 with st.spinner("🤔 Analisando..."):
                     try:
-                        response = agent.run(prompt)
+                        # Get debug mode from session state
+                        debug_mode = st.session_state.get("debug_mode", False)
+
+                        # Run agent with debug mode
+                        response = agent.run(prompt, debug_mode=debug_mode)
+
+                        # Prepare response content
+                        response_content = response.content
+
+                        # If debug mode is active, add debug information
+                        if (
+                            debug_mode
+                            and hasattr(agent, "debug_info")
+                            and agent.debug_info
+                        ):
+                            debug_content = "\n\n---\n\n## **INFORMAÇÕES DE DEBUG**\n\n"
+
+                            # Original vs Processed Query
+                            if agent.debug_info.get(
+                                "processed_query"
+                            ) != agent.debug_info.get("original_query"):
+                                debug_content += f"**📝 Query Original:** `{agent.debug_info.get('original_query', 'N/A')}`\n\n"
+                                debug_content += f"**🔄 Query Processada:** `{agent.debug_info.get('processed_query', 'N/A')}`\n\n"
+
+                            # SQL Queries executed
+                            if agent.debug_info.get("sql_queries"):
+                                debug_content += "**💾 Queries SQL Executadas:**\n"
+                                for i, query in enumerate(
+                                    agent.debug_info["sql_queries"], 1
+                                ):
+                                    # Format SQL query for better readability
+                                    formatted_query = format_sql_query(query)
+                                    debug_content += f"```sql\n{formatted_query}\n```\n"
+
+                            # Tool calls
+                            if agent.debug_info.get("tool_calls"):
+                                debug_content += "**🔧 Ferramentas Utilizadas:**\n"
+                                for tool_call in agent.debug_info["tool_calls"]:
+                                    debug_content += (
+                                        f"- **{tool_call.get('tool', 'Unknown')}**\n"
+                                    )
+                                    debug_content += f"  - *Args:* `{tool_call.get('args', 'N/A')}`\n"
+                                    if tool_call.get("result"):
+                                        debug_content += f"  - *Resultado:* `{tool_call.get('result', 'N/A')}`\n"
+                                    debug_content += "\n"
+
+                            response_content += debug_content
+
                         st.session_state.messages.append(
-                            {"role": "assistant", "content": response.content}
+                            {"role": "assistant", "content": response_content}
                         )
                     except Exception as e:
                         error_msg = f"❌ Erro ao processar: {str(e)}"
                         st.session_state.messages.append(
                             {"role": "assistant", "content": error_msg}
                         )
-                
+
                 # Rerun to display new messages
                 st.rerun()
     else:
