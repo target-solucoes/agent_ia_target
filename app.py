@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 load_dotenv()
 
 # Page configuration
-st.set_page_config(page_title="Agente IA Target", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Agente IA Target v0.2", page_icon="🤖", layout="wide")
 
 
 def format_sql_query(query):
