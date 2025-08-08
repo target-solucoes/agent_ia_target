@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from text_normalizer import TextNormalizer, load_alias_mapping
 
 load_dotenv()
-selected_model = "gpt-4.1-nano-2025-04-14"
+selected_model = "gpt-5-nano-2025-08-07"
 
 
 def create_agent(session_user_id=None, debug_mode=False):
